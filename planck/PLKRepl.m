@@ -4,11 +4,23 @@
 #include "linenoise.h"
 
 static PLKClojureScriptEngine* s_clojureScriptEngine = nil;
+static NSMutableArray* previousLines = nil;
+
+NSString* buf2str(const char *buf) {
+    NSString* rv = @"";
+    if (buf) {
+        NSString* decoded = [NSString stringWithCString:buf
+                                               encoding:NSUTF8StringEncoding];
+        if (decoded) {
+            rv = decoded;
+        }
+    }
+    return rv;
+}
 
 void completion(const char *buf, linenoiseCompletions *lc) {
     
-    NSArray* completions = [s_clojureScriptEngine getCompletionsForBuffer:[NSString stringWithCString:buf
-                                                                                             encoding:NSUTF8StringEncoding]];
+    NSArray* completions = [s_clojureScriptEngine getCompletionsForBuffer:buf2str(buf)];
     for (NSString* completion in completions) {
         linenoiseAddCompletion(lc, [completion cStringUsingEncoding:NSUTF8StringEncoding]);
     }
@@ -16,6 +28,11 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
 void highlight(const char* buf, int pos) {
     
+    NSArray* highlightCoords = [s_clojureScriptEngine getHighlightCoordsForPos:pos
+                                                                        buffer:buf2str(buf)
+                                                                 previousLines:previousLines];
+    // TODO use highlightCoods to highlight temporarisly
+    highlightCoords = nil;
 }
 
 @implementation PLKRepl
@@ -84,6 +101,7 @@ void highlight(const char* buf, int pos) {
     }
     
     NSString* input = nil;
+    previousLines = [[NSMutableArray alloc] init];
     char *line = NULL;
     while(plainTerminal ||
           (line = linenoise([currentPrompt cStringUsingEncoding:NSUTF8StringEncoding])) != NULL) {
@@ -116,6 +134,8 @@ void highlight(const char* buf, int pos) {
         } else {
             input = [NSString stringWithFormat:@"%@\n%@", input, inputLine];
         }
+        
+        [previousLines addObject:inputLine];
         
         // Check for explicit exit
         
@@ -150,6 +170,7 @@ void highlight(const char* buf, int pos) {
             // Now that we've evaluated the input, reset for next round
             
             input = nil;
+            [previousLines removeAllObjects];
             
             // Fetch the current namespace and use it to set the prompt
             

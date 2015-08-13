@@ -209,6 +209,13 @@
                      (filter (partial is-completion? buffer-match-suffix)
                        all-candidates))))))))
 
+(defn ^:export get-highlight-coords [pos buffer previous-lines]
+  (let [previous-lines (js->clj previous-lines)]
+    (prn {:pos pos
+          :buffer buffer
+          :prevous-lines previous-lines})
+    (clj->js [0 0])))
+
 (defn extension->lang [extension]
   (if (= ".js" extension)
     :js
