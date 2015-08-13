@@ -14,6 +14,10 @@ void completion(const char *buf, linenoiseCompletions *lc) {
     }
 }
 
+void highlight(const char* buf, int pos) {
+    
+}
+
 @implementation PLKRepl
 
 -(NSString*)formPrompt:(NSString*)currentNs isSecondary:(BOOL)secondary plainTerminal:(BOOL)plainTerminal
@@ -76,6 +80,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
         
         s_clojureScriptEngine = clojureScriptEngine;
         linenoiseSetCompletionCallback(completion);
+        linenoiseSetHighlightCallback(highlight);
     }
     
     NSString* input = nil;

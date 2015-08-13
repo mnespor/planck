@@ -122,6 +122,7 @@
 #define LINENOISE_MAX_LINE 4096
 static char *unsupported_term[] = {"dumb","cons25","emacs",NULL};
 static linenoiseCompletionCallback *completionCallback = NULL;
+static linenoiseHighlightCallback *highlightCallback = NULL;
 
 static struct termios orig_termios; /* In order to restore at exit.*/
 static int rawmode = 0; /* For atexit() function to check if restore is needed*/
@@ -429,6 +430,11 @@ void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
     lc->cvec[lc->len++] = copy;
 }
 
+/* Register a callback function to be called for brace highlighting. */
+void linenoiseSetHighlightCallback(linenoiseHighlightCallback *fn) {
+    highlightCallback = fn;
+}
+
 /* =========================== Line editing ================================= */
 
 /* We define a very simple "append buffer" structure, that is an heap
@@ -614,6 +620,10 @@ int linenoiseEditInsert(struct linenoiseState *l, char c) {
             l->pos++;
             l->buf[l->len] = '\0';
             refreshLine(l);
+        }
+        if (c == '(' || c == '[' || c == '{' ||
+            c == ')' || c == ']' || c == '}') {
+            highlightCallback(l->buf, l->pos-1);
         }
     }
     return 0;
