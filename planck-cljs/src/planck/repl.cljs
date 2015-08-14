@@ -221,7 +221,7 @@
           false)))))
 
 (defn ^:export get-highlight-coords
-  "Gets the highlight coordinates [line pos] for the other matching
+  "Gets the highlight coordinates [line pos] for the previous matching
   brace. This is done by progressivly expanding source considered
   until a readable form is encountered with a matching brace on the
   other end. The coordinate system is such that line 0 is the current
@@ -239,10 +239,14 @@
     (let [form-start
           (some identity
             (for [n (range (dec total-pos) -1 -1)]
-              (let [candidate-form (subs total-source n (inc total-pos))]
-                (if (is-completely-readable? candidate-form)
-                  n
-                  nil))))]
+              (let [candidate-form (subs total-source n (inc total-pos))
+                    first-char (subs candidate-form 0 1)]
+                (if (#{"(" "[" "{" "#"} first-char)
+                  (if (is-completely-readable? candidate-form)
+                    (if (= "#" first-char)
+                      (inc n)
+                      n)
+                    nil)))))]
       (let [highlight-coords
             (if form-start
               (reduce (fn [[line-ndx start-pos] line]
