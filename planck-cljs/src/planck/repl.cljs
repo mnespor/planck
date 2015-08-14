@@ -221,14 +221,16 @@
           false)))))
 
 (defn ^:export get-highlight-coords [pos buffer previous-lines]
+  (prn {:pos pos :buffer buffer :previous-lines (js->clj previous-lines)})
   (let [previous-lines (js->clj previous-lines)
-        previous-source (s/join previous-lines "\n")
+        previous-source (s/join "\n" previous-lines)
         total-source (if (empty? previous-lines)
                        buffer
                        (str previous-source "\n" buffer))
         total-pos (+ (if (empty? previous-lines)
                        0
                        (inc (count previous-source))) pos)]
+    (prn total-source total-pos)
     (let [form-start
           (some identity
             (for [n (range (dec total-pos) -1 -1)]
