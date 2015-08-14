@@ -1,7 +1,9 @@
 (ns planck.repl
   (:require-macros [cljs.env.macros :refer [with-compiler-env]])
-  (:require [cljs.analyzer :as ana]
+  (:require [clojure.string :as s]
+            [cljs.analyzer :as ana]
             [cljs.tools.reader :as r]
+            [cljs.tools.reader.reader-types :as rt]
             [cljs.tagged-literals :as tags]
             [cljs.source-map :as sm]
             [cljs.js :as cljs]
@@ -209,12 +211,34 @@
                      (filter (partial is-completion? buffer-match-suffix)
                        all-candidates))))))))
 
+(defn- is-completely-readable? [source]
+  (let [rdr (rt/indexing-push-back-reader source 1 "noname")]
+    (binding [r/*data-readers* tags/*cljs-data-readers*]
+      (try
+        (r/read {:eof (js-obj) :read-cond :allow :features #{:cljs}} rdr)
+        (nil? (rt/peek-char rdr))
+        (catch :default _
+          false)))))
+
 (defn ^:export get-highlight-coords [pos buffer previous-lines]
-  (let [previous-lines (js->clj previous-lines)]
-    (prn {:pos pos
-          :buffer buffer
-          :prevous-lines previous-lines})
-    (clj->js [0 0])))
+  (let [previous-lines (js->clj previous-lines)
+        previous-source (s/join previous-lines "\n")
+        total-source (if (empty? previous-lines)
+                       buffer
+                       (str previous-source "\n" buffer))
+        total-pos (+ (if (empty? previous-lines)
+                       0
+                       (inc (count previous-source))) pos)]
+    (let [form-start
+          (some identity
+            (for [n (range (dec total-pos) -1 -1)]
+              (let [candidate-form (subs total-source n (inc total-pos))]
+                (if (is-completely-readable? candidate-form)
+                  n
+                  nil))))]
+      (when form-start
+        (prn "readable" (subs total-source form-start (inc total-pos))))
+      (clj->js [0 form-start]))))
 
 (defn extension->lang [extension]
   (if (= ".js" extension)
