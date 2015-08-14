@@ -5,7 +5,7 @@
 
 static PLKClojureScriptEngine* s_clojureScriptEngine = nil;
 static NSMutableArray* previousLines = nil;
-int32_t highlightCallbackCounter = 0;
+void (^highlightRestore)() = nil;
 
 NSString* buf2str(const char *buf) {
     NSString* rv = @"";
@@ -29,8 +29,6 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
 void highlight(const char* buf, int pos) {
     
-    int myCounter = OSAtomicAdd32(1, &highlightCallbackCounter);
-    
     char current = buf[pos];
     
     if (current == ']' || current == '}' || current == ')') {
@@ -38,7 +36,7 @@ void highlight(const char* buf, int pos) {
         NSArray* highlightCoords = [s_clojureScriptEngine getHighlightCoordsForPos:pos
                                                                             buffer:buf2str(buf)
                                                                      previousLines:previousLines];
-       
+        
         
         int numLinesUp = ((NSNumber*)highlightCoords[0]).intValue;
         int highlightPos = ((NSNumber*)highlightCoords[1]).intValue;
@@ -58,27 +56,39 @@ void highlight(const char* buf, int pos) {
             
             fflush(stdout);
             
+            highlightRestore = ^(void) {
+                if (numLinesUp) {
+                    fprintf(stdout,"\x1b[%dB", numLinesUp);
+                }
+                
+                if (relativeHoriz < 0) {
+                    fprintf(stdout,"\x1b[%dC", 1 - relativeHoriz);
+                } else if (relativeHoriz > 0){
+                    fprintf(stdout,"\x1b[%dD", -1 + relativeHoriz);
+                }
+                
+                fflush(stdout);
+            };
+            
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5*NSEC_PER_SEC)),
                            dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                                
-                               if (myCounter == OSAtomicAdd32(0, &highlightCallbackCounter)) {
-                                   
-                                   if (numLinesUp) {
-                                       fprintf(stdout,"\x1b[%dB", numLinesUp);
-                                   }
-                                   
-                                   if (relativeHoriz < 0) {
-                                       fprintf(stdout,"\x1b[%dC", 1 - relativeHoriz);
-                                   } else if (relativeHoriz > 0){
-                                       fprintf(stdout,"\x1b[%dD", -1 + relativeHoriz);
-                                   }
-
-                                   fflush(stdout);
+                               if (highlightRestore != nil) {
+                                   highlightRestore();
+                                   highlightRestore = nil;
                                }
+                               
                            });
             
             
         }
+    }
+}
+
+void highlightCancel() {
+    if (highlightRestore != nil) {
+        highlightRestore();
+        highlightRestore = nil;
     }
 }
 
@@ -145,6 +155,7 @@ void highlight(const char* buf, int pos) {
         s_clojureScriptEngine = clojureScriptEngine;
         linenoiseSetCompletionCallback(completion);
         linenoiseSetHighlightCallback(highlight);
+        linenoiseSetHighlightCancelCallback(highlightCancel);
     }
     
     NSString* input = nil;

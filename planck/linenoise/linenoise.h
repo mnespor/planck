@@ -54,6 +54,8 @@ void linenoiseAddCompletion(linenoiseCompletions *, const char *);
     
 typedef void(linenoiseHighlightCallback)(const char *, int pos);
 void linenoiseSetHighlightCallback(linenoiseHighlightCallback *);
+typedef void(linenoiseHighlightCancelCallback)();
+void linenoiseSetHighlightCancelCallback(linenoiseHighlightCancelCallback *);
 
 char *linenoise(const char *prompt);
 int linenoiseHistoryAdd(const char *line);
