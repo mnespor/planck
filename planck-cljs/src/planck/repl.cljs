@@ -220,8 +220,14 @@
         (catch :default _
           false)))))
 
-(defn ^:export get-highlight-coords [pos buffer previous-lines]
-  (prn {:pos pos :buffer buffer :previous-lines (js->clj previous-lines)})
+(defn ^:export get-highlight-coords
+  "Gets the highlight coordinates [line pos] for the other matching
+  brace. This is done by progressivly expanding source considered
+  until a readable form is encountered with a matching brace on the
+  other end. The coordinate system is such that line 0 is the current
+  buffer line, line 1 is the previous line, and so on, and pos is the
+  position in that line."
+  [pos buffer previous-lines]
   (let [previous-lines (js->clj previous-lines)
         previous-source (s/join "\n" previous-lines)
         total-source (if (empty? previous-lines)
@@ -230,7 +236,6 @@
         total-pos (+ (if (empty? previous-lines)
                        0
                        (inc (count previous-source))) pos)]
-    (prn total-source total-pos)
     (let [form-start
           (some identity
             (for [n (range (dec total-pos) -1 -1)]
@@ -238,9 +243,16 @@
                 (if (is-completely-readable? candidate-form)
                   n
                   nil))))]
-      (when form-start
-        (prn "readable" (subs total-source form-start (inc total-pos))))
-      (clj->js [0 form-start]))))
+      (let [highlight-coords
+            (if form-start
+              (reduce (fn [[line-ndx start-pos] line]
+                        (if (< start-pos (count line))
+                          (reduced [line-ndx start-pos])
+                          [(dec line-ndx) (- start-pos (inc (count line)))]))
+                [(count previous-lines) form-start]
+                previous-lines)
+              [-1 -1])]
+        (clj->js highlight-coords)))))
 
 (defn extension->lang [extension]
   (if (= ".js" extension)

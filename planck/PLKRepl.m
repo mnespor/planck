@@ -32,7 +32,9 @@ void highlight(const char* buf, int pos) {
                                                                         buffer:buf2str(buf)
                                                                  previousLines:previousLines];
     // TODO use highlightCoods to highlight temporarisly
-    highlightCoords = nil;
+ 
+    
+    NSLog(@"highlight %d %d", ((NSNumber*)highlightCoords[0]).intValue, ((NSNumber*)highlightCoords[1]).intValue);
 }
 
 @implementation PLKRepl
