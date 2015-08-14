@@ -33,8 +33,43 @@ void highlight(const char* buf, int pos) {
                                                                  previousLines:previousLines];
     // TODO use highlightCoods to highlight temporarisly
  
+ 
+
+    int numLinesUp = ((NSNumber*)highlightCoords[0]).intValue;
+    int highlightPos = ((NSNumber*)highlightCoords[1]).intValue;
+    //NSLog(@"%d %d", highlightPos, pos);
     
-    NSLog(@"highlight %d %d", ((NSNumber*)highlightCoords[0]).intValue, ((NSNumber*)highlightCoords[1]).intValue);
+    if (numLinesUp != -1) {
+        int relativeHoriz = highlightPos - pos;
+        if (relativeHoriz < 0) {
+            
+            if (numLinesUp) {
+                fprintf(stdout,"\x1b[%dA", numLinesUp);
+            }
+            
+            fprintf(stdout,"\x1b[%dD", 1 - relativeHoriz);
+            //fprintf(stdout,"\x1b[46m");
+            //fprintf(stdout,"[");
+            fflush(stdout);
+            //[NSThread sleepForTimeInterval:0.3];
+            //fprintf(stdout,"\x1b[0m");
+            
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC/2)), dispatch_get_main_queue(), ^{
+                if (numLinesUp) {
+                    fprintf(stdout,"\x1b[%dB", numLinesUp);
+                }
+                
+                fprintf(stdout,"\x1b[%dC", 1 - relativeHoriz);
+                fflush(stdout);
+            });
+            
+            
+            //fprintf(stdout,"\x1b[46m");
+            //fprintf(stdout,"]");
+            //fflush(stdout);
+            //fprintf(stdout,"\x1b[0m");
+        }
+    }
 }
 
 @implementation PLKRepl
