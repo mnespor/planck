@@ -621,10 +621,9 @@ int linenoiseEditInsert(struct linenoiseState *l, char c) {
             l->buf[l->len] = '\0';
             refreshLine(l);
         }
-        if (c == '(' || c == '[' || c == '{' ||
-            c == ')' || c == ']' || c == '}') {
-            highlightCallback(l->buf, l->pos-1);
-        }
+        
+        highlightCallback(l->buf, l->pos-1);
+        
     }
     return 0;
 }

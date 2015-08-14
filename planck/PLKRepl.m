@@ -5,6 +5,7 @@
 
 static PLKClojureScriptEngine* s_clojureScriptEngine = nil;
 static NSMutableArray* previousLines = nil;
+int32_t highlightCallbackCounter = 0;
 
 NSString* buf2str(const char *buf) {
     NSString* rv = @"";
@@ -28,46 +29,55 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
 void highlight(const char* buf, int pos) {
     
-    NSArray* highlightCoords = [s_clojureScriptEngine getHighlightCoordsForPos:pos
-                                                                        buffer:buf2str(buf)
-                                                                 previousLines:previousLines];
-    // TODO use highlightCoods to highlight temporarisly
- 
- 
-
-    int numLinesUp = ((NSNumber*)highlightCoords[0]).intValue;
-    int highlightPos = ((NSNumber*)highlightCoords[1]).intValue;
-    //NSLog(@"%d %d", highlightPos, pos);
+    int myCounter = OSAtomicAdd32(1, &highlightCallbackCounter);
     
-    if (numLinesUp != -1) {
-        int relativeHoriz = highlightPos - pos;
-        if (relativeHoriz < 0) {
+    char current = buf[pos];
+    
+    if (current == ']' || current == '}' || current == ')') {
+        
+        NSArray* highlightCoords = [s_clojureScriptEngine getHighlightCoordsForPos:pos
+                                                                            buffer:buf2str(buf)
+                                                                     previousLines:previousLines];
+       
+        
+        int numLinesUp = ((NSNumber*)highlightCoords[0]).intValue;
+        int highlightPos = ((NSNumber*)highlightCoords[1]).intValue;
+        
+        if (numLinesUp != -1) {
+            int relativeHoriz = highlightPos - pos;
             
             if (numLinesUp) {
                 fprintf(stdout,"\x1b[%dA", numLinesUp);
             }
             
-            fprintf(stdout,"\x1b[%dD", 1 - relativeHoriz);
-            //fprintf(stdout,"\x1b[46m");
-            //fprintf(stdout,"[");
+            if (relativeHoriz < 0) {
+                fprintf(stdout,"\x1b[%dD", 1 - relativeHoriz);
+            } else if (relativeHoriz > 0){
+                fprintf(stdout,"\x1b[%dC", -1 + relativeHoriz);
+            }
+            
             fflush(stdout);
-            //[NSThread sleepForTimeInterval:0.3];
-            //fprintf(stdout,"\x1b[0m");
             
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(NSEC_PER_SEC/2)), dispatch_get_main_queue(), ^{
-                if (numLinesUp) {
-                    fprintf(stdout,"\x1b[%dB", numLinesUp);
-                }
-                
-                fprintf(stdout,"\x1b[%dC", 1 - relativeHoriz);
-                fflush(stdout);
-            });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5*NSEC_PER_SEC)),
+                           dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                               
+                               if (myCounter == OSAtomicAdd32(0, &highlightCallbackCounter)) {
+                                   
+                                   if (numLinesUp) {
+                                       fprintf(stdout,"\x1b[%dB", numLinesUp);
+                                   }
+                                   
+                                   if (relativeHoriz < 0) {
+                                       fprintf(stdout,"\x1b[%dC", 1 - relativeHoriz);
+                                   } else if (relativeHoriz > 0){
+                                       fprintf(stdout,"\x1b[%dD", -1 + relativeHoriz);
+                                   }
+
+                                   fflush(stdout);
+                               }
+                           });
             
             
-            //fprintf(stdout,"\x1b[46m");
-            //fprintf(stdout,"]");
-            //fflush(stdout);
-            //fprintf(stdout,"\x1b[0m");
         }
     }
 }
